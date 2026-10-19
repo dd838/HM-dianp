@@ -8,6 +8,7 @@ import com.hmdp.mapper.UserMapper;
 import com.hmdp.service.IUserService;
 import com.hmdp.utils.RegexPatterns;
 import com.hmdp.utils.RegexUtils;
+import com.sun.org.apache.bcel.internal.classfile.Code;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -30,14 +31,14 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         //1.校验手机号
         if (RegexUtils.isPhoneInvalid(phone)) {
             //2.不符合返回错误信息
-            Result.fail("号码不合法");
+            Result.fail("手机号码格式错误");
         }
         //3.符合生成验证码
         String code = RandomUtil.randomNumbers(6);
         //4.保存验证码到session
         session.setAttribute("code", code);
         //5.发送验证码
-        log.debug("发送短信验证码成功",code);
+        log.debug("验证成功", code);
         //返回ok
         return Result.ok();
     }
