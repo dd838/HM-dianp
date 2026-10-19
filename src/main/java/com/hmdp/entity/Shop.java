@@ -103,7 +103,7 @@ public class Shop implements Serializable {
      */
     private LocalDateTime updateTime;
 
-
+    //距离
     @TableField(exist = false)
     private Double distance;
 }
