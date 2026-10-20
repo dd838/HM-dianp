@@ -17,42 +17,18 @@ import static net.sf.jsqlparser.util.validation.metadata.NamedObject.user;
 
 public class LoginInterceptor implements HandlerInterceptor {
 
-    private StringRedisTemplate stringRedisTemplate;
 
-    public LoginInterceptor(StringRedisTemplate stringRedisTemplate) {
-        this.stringRedisTemplate = stringRedisTemplate;
-    }
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
-        // 1.获取请求头中的token
-        String token = request.getHeader("authorization");
-        if (token == null || token.isEmpty()) {
+        //1.判断是否需要拦截(ThreadLocal中是否有用户)
+        if(UserHolder.getUser() == null){
             response.setStatus(401);
             return false;
         }
-        //2.基于token获取redis中的用户
-        String key = RedisConstants.LOGIN_USER_KEY + token;
-        Map<Object, Object> userMap = stringRedisTemplate.opsForHash().entries(key);
-        //3.判断用户是否存在
-        if (userMap.isEmpty()) {
-            // 4.不存在,拦截
-            response.setStatus(401);
-            return false;
-        }
-        //5.将查询到的Hash数据转换成UserDto对象
-        UserDTO userDTO = BeanUtil.fillBeanWithMap(userMap, new UserDTO(), false);
-        //6.存在,保存用户信息到ThreadLocal
-        UserHolder.saveUser(userDTO);
-        //7.刷新token有效期
-        stringRedisTemplate.expire(key, RedisConstants.LOGIN_USER_TTL, TimeUnit.MINUTES);
-        //8.放行
+        //有用户放行
         return true;
     }
 
-    @Override
-    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, @Nullable Exception ex) throws Exception {
-        HandlerInterceptor.super.afterCompletion(request, response, handler, ex);
-        UserHolder.removeUser();
-    }
+
 }
