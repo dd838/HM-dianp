@@ -55,7 +55,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         // 2.校验验证码
         String code = loginForm.getCode();
         Object cacheCode = session.getAttribute("code");
-        if (cacheCode == null || cacheCode.equals(code)) {
+        if (cacheCode == null || !cacheCode.equals(code)) {
             // 3.不一致,报错
             return Result.fail("验证码错误");
         }
