@@ -95,7 +95,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         //7.4设置token 有效期
         stringRedisTemplate.expire(tokenKeys, LOGIN_USER_TTL, TimeUnit.MINUTES);
 
-        return Result.ok();
+        return Result.ok(token);
     }
 
     private User createUserWithPhone(String phone) {
