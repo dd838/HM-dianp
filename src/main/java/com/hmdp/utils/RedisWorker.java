@@ -1,5 +1,6 @@
 package com.hmdp.utils;
 
+import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 import javax.annotation.Resource;
@@ -7,6 +8,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 
+@Configuration
 public class RedisWorker {
     private static final Long BEGIN_TIMESTAMP = 1767225600L;
 
