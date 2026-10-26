@@ -13,12 +13,15 @@ import com.hmdp.utils.UserHolder;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.aop.framework.AopContext;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
+import java.util.Collections;
 
 /**
  * <p>
@@ -43,43 +46,37 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
     @Resource
     private RedissonClient redissonClient;
 
+    private static final DefaultRedisScript<Long> SECKILL_SCRIPT;
+
+    static {
+        SECKILL_SCRIPT = new DefaultRedisScript<>();
+        SECKILL_SCRIPT.setLocation(new ClassPathResource("unlock.lua"));
+        SECKILL_SCRIPT.setResultType(Long.class);
+
+    }
+
     @Override
     public Result secKillVoucher(Long voucherId) {
-        //1. 查询优惠券
-        SeckillVoucher byId = seckillVoucherService.getById(voucherId);
-        //2.判断秒杀是否开始
-        if (byId.getBeginTime().isAfter(LocalDateTime.now())) {
-            return Result.fail("活动尚未开始");
-        }
-        //3.判断秒杀是否结束
-        if (byId.getEndTime().isBefore(LocalDateTime.now())) {
-            return Result.fail("活动已经结束");
-        }
-        //4.判断库存是否充足
-        if (byId.getStock() < 1) {
-            return Result.fail("库存不足");
-        }
 
-
+        //获取用户
         Long userId = UserHolder.getUser().getId();
-        //获取锁对象
-        SimpleRedisLock simpleRedisLock = new SimpleRedisLock("order" + userId, stringRedisTemplate);
-        RLock rLock = redissonClient.getLock("lock:order" + userId);
-        //获取锁
-        boolean isLock = rLock.tryLock();
-        //判断是否成功
-        if (!isLock) {
-            return Result.fail("不允许重复下单");
+        //1.执行lua脚本
+        Long result = stringRedisTemplate.execute(
+                SECKILL_SCRIPT,
+                Collections.emptyList(),
+                voucherId.toString(),
+                userId.toString()
+        );
+        //2.判断结果是否为0
+        int r = result.intValue();
+        if (r != 0) {
+            //2.1.不为0，代表没有购买资格
+            return Result.fail(r == 1 ? "库存不足" : "不能重复下单");
         }
-        try {
-            //7.返回订单id
-            IVoucherOrderService proxy = (IVoucherOrderService) AopContext.currentProxy();
-            return proxy.createVoucherOrder(voucherId);
-        } finally {
-            //释放锁
-            simpleRedisLock.unLock();
-        }
-
+        //2.2.为0，有购买资格，把下单信息保存到阻塞队列
+        //TODO 稍后完善
+        //3.返回订单id
+        return Result.ok(0);
     }
 
     @Transactional
@@ -118,3 +115,43 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         return Result.ok(order);
     }
 }
+
+
+//@Override
+//public Result secKillVoucher(Long voucherId) {
+//    //1. 查询优惠券
+//    SeckillVoucher byId = seckillVoucherService.getById(voucherId);
+//    //2.判断秒杀是否开始
+//    if (byId.getBeginTime().isAfter(LocalDateTime.now())) {
+//        return Result.fail("活动尚未开始");
+//    }
+//    //3.判断秒杀是否结束
+//    if (byId.getEndTime().isBefore(LocalDateTime.now())) {
+//        return Result.fail("活动已经结束");
+//    }
+//    //4.判断库存是否充足
+//    if (byId.getStock() < 1) {
+//        return Result.fail("库存不足");
+//    }
+//
+//
+//    Long userId = UserHolder.getUser().getId();
+//    //获取锁对象
+//    SimpleRedisLock simpleRedisLock = new SimpleRedisLock("order" + userId, stringRedisTemplate);
+//    RLock rLock = redissonClient.getLock("lock:order" + userId);
+//    //获取锁
+//    boolean isLock = rLock.tryLock();
+//    //判断是否成功
+//    if (!isLock) {
+//        return Result.fail("不允许重复下单");
+//    }
+//    try {
+//        //7.返回订单id
+//        IVoucherOrderService proxy = (IVoucherOrderService) AopContext.currentProxy();
+//        return proxy.createVoucherOrder(voucherId);
+//    } finally {
+//        //释放锁
+//        simpleRedisLock.unLock();
+//    }
+//
+//}
