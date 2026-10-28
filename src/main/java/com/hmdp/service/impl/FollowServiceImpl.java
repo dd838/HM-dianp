@@ -86,6 +86,5 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
                 .collect(Collectors.toList());
 
         return Result.ok(users);
-
     }
 }
